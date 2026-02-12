@@ -1,0 +1,116 @@
+[project]
+name = "gaussian-splatting"
+version = "1.0.0"
+description = "Complete implementation of 3D Gaussian Splatting for Real-Time Radiance Field Rendering"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "3DGS Implementation Team"}
+]
+keywords = [
+    "3dgs",
+    "gaussian-splatting",
+    "radiance-fields",
+    "nerf",
+    "computer-vision",
+    "3d-reconstruction"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+]
+
+dependencies = [
+    "torch==2.0.0",
+    "torchvision==0.15.0",
+    "numpy==1.21.0",
+    "pillow==9.0.0",
+    "tqdm==4.65.0",
+    "plyfile==0.8.0",
+    "imageio==2.9.0",
+    "imageio-ffmpeg==0.4.0",
+    "lpips==0.1.4",
+    "scikit-learn==1.0.0",
+    "scipy==1.7.0",
+    "tensorboard==2.10.0",
+    "matplotlib==3.5.0",
+    "trimesh==3.15.0",
+    "open3d==0.16.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "isort>=5.0.0",
+    "flake8>=5.0.0",
+    "mypy>=1.0.0",
+    "pylint>=2.17.0",
+]
+
+[project.scripts]
+train = "train:main"
+render = "render:main"
+metrics = "metrics:main"
+
+[project.urls]
+Homepage = "https://github.com/graphdeco-inria/gaussian-splatting"
+Repository = "https://github.com/graphdeco-inria/gaussian-splatting"
+Issues = "https://github.com/graphdeco-inria/gaussian-splatting/issues"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gaussian_splatting*"]
+exclude = ["gaussian_splatting.tests*", "gaussian_splatting.*.tests*"]
+
+[tool.setuptools.package-data]
+gaussian_splatting = ["**/*.py", "**/*.md"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311", "py312"]
+include = "\\.pyi?$"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip = [".venv", "venv", "__pycache__"]
+
+[tool.pylint.master]
+max-line-length = 100
+extension-pkg-allow-list = ["numpy"]
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "v", "x", "y", "z", "R", "T", "K"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.tqdm]
+spinner = false

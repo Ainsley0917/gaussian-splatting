@@ -1,0 +1,9 @@
+# pyproject.toml
+[tool.pylint.messages_control]
+disable = [
+    "C0115",  # unaccessed-typed-def (for type hints)
+    "R0904",  # raise-from-missing (for type hints)
+    "W0611",  # unused-import
+    "W0212",  # unused-argument (for type hints)
+    "W0201",  # consider-using-f-string (for logging)
+]
