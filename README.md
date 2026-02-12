@@ -40,6 +40,26 @@ Or install as a package:
 pip install -e .
 ```
 
+### Enable CUDA Rasterizer (Recommended)
+
+The renderer now auto-selects backend at runtime:
+
+- Uses `diff_gaussian_rasterization` when available on CUDA
+- Falls back to the built-in PyTorch rasterizer when CUDA extension is missing
+
+To enable CUDA rasterization (this repo workflow), initialize and build the submodule:
+
+```bash
+git submodule update --init --recursive
+pip install -e submodules/diff_gaussian_rasterization
+```
+
+If you prefer installing directly from upstream without submodule:
+
+```bash
+pip install git+https://github.com/graphdeco-inria/diff-gaussian-rasterization.git
+```
+
 ## Quick Start
 
 ### Training on COLMAP Dataset

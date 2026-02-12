@@ -10,6 +10,22 @@ import torch.nn.functional as F
 import math
 from typing import Dict, Tuple, Optional
 
+from utils.sh_utils import eval_sh
+
+CUDAGaussianRasterizationSettings = None
+CUDAGaussianRasterizer = None
+CUDA_RASTERIZER_AVAILABLE = False
+
+try:
+    from diff_gaussian_rasterization import (
+        GaussianRasterizationSettings as CUDAGaussianRasterizationSettings,
+        GaussianRasterizer as CUDAGaussianRasterizer,
+    )
+
+    CUDA_RASTERIZER_AVAILABLE = True
+except Exception:
+    pass
+
 
 class GaussianRasterizationSettings:
     """
@@ -450,6 +466,18 @@ def render(
     Returns:
         Dictionary with rendered outputs
     """
+    if CUDA_RASTERIZER_AVAILABLE and pc.get_xyz.is_cuda:
+        cuda_render_output = _render_with_cuda_rasterizer(
+            viewpoint_camera=viewpoint_camera,
+            pc=pc,
+            pipe=pipe,
+            bg_color=bg_color,
+            scaling_modifier=scaling_modifier,
+            override_color=override_color,
+        )
+        if cuda_render_output is not None:
+            return cuda_render_output
+
     # Create rasterization settings
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
@@ -507,6 +535,128 @@ def render(
     rendered_depth = raster_output["depth"]
     rendered_alpha = raster_output["alpha"]
     radii = raster_output["radii"]
+
+    return {
+        "render": rendered_image,
+        "depth": rendered_depth,
+        "alpha": rendered_alpha,
+        "viewspace_points": means2D,
+        "visibility_filter": radii > 0,
+        "radii": radii,
+    }
+
+
+def _render_with_cuda_rasterizer(
+    viewpoint_camera,
+    pc,
+    pipe,
+    bg_color: torch.Tensor,
+    scaling_modifier: float,
+    override_color,
+):
+    if CUDAGaussianRasterizationSettings is None or CUDAGaussianRasterizer is None:
+        return None
+
+    tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
+    tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
+
+    settings_kwargs = {
+        "image_height": int(viewpoint_camera.image_height),
+        "image_width": int(viewpoint_camera.image_width),
+        "tanfovx": tanfovx,
+        "tanfovy": tanfovy,
+        "bg": bg_color,
+        "scale_modifier": scaling_modifier,
+        "viewmatrix": viewpoint_camera.world_view_transform,
+        "projmatrix": viewpoint_camera.full_proj_transform,
+        "sh_degree": pc.active_sh_degree,
+        "campos": viewpoint_camera.camera_center,
+        "prefiltered": False,
+        "debug": getattr(pipe, "debug", False),
+        "antialiasing": getattr(pipe, "antialiasing", False),
+    }
+
+    try:
+        raster_settings = CUDAGaussianRasterizationSettings(**settings_kwargs)
+    except TypeError:
+        settings_kwargs.pop("antialiasing", None)
+        raster_settings = CUDAGaussianRasterizationSettings(**settings_kwargs)
+
+    rasterizer = CUDAGaussianRasterizer(raster_settings=raster_settings)
+
+    means3D = pc.get_xyz
+    means2D = torch.zeros_like(means3D, requires_grad=True, device=means3D.device) + 0
+    try:
+        means2D.retain_grad()
+    except RuntimeError:
+        pass
+
+    opacity = pc.get_opacity
+
+    scales = None
+    rotations = None
+    cov3D_precomp = None
+    if getattr(pipe, "compute_cov3D_python", False):
+        cov3D_precomp = pc.get_covariance(scaling_modifier)
+    else:
+        scales = pc.get_scaling
+        rotations = pc.get_rotation
+
+    shs = None
+    colors_precomp = None
+    if override_color is None:
+        if getattr(pipe, "convert_SHs_python", False):
+            shs_view = pc.get_features.transpose(1, 2).view(
+                -1, 3, (pc.max_sh_degree + 1) ** 2
+            )
+            dir_pp = pc.get_xyz - viewpoint_camera.camera_center.repeat(
+                pc.get_features.shape[0], 1
+            )
+            dir_pp_normalized = dir_pp / dir_pp.norm(dim=1, keepdim=True)
+            sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
+            colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
+        else:
+            shs = pc.get_features
+    else:
+        colors_precomp = override_color
+
+    raster_kwargs = {
+        "means3D": means3D,
+        "means2D": means2D,
+        "shs": shs,
+        "colors_precomp": colors_precomp,
+        "opacities": opacity,
+        "scales": scales,
+        "rotations": rotations,
+        "cov3D_precomp": cov3D_precomp,
+    }
+
+    try:
+        cuda_output = rasterizer(**raster_kwargs)
+    except TypeError:
+        raster_kwargs["cov3Ds_precomp"] = raster_kwargs.pop("cov3D_precomp")
+        cuda_output = rasterizer(**raster_kwargs)
+
+    if not isinstance(cuda_output, tuple):
+        return None
+
+    if len(cuda_output) >= 3:
+        rendered_image, radii, rendered_depth = (
+            cuda_output[0],
+            cuda_output[1],
+            cuda_output[2],
+        )
+    elif len(cuda_output) == 2:
+        rendered_image, radii = cuda_output
+        rendered_depth = torch.zeros(
+            (1, int(viewpoint_camera.image_height), int(viewpoint_camera.image_width)),
+            device=rendered_image.device,
+            dtype=rendered_image.dtype,
+        )
+    else:
+        return None
+
+    rendered_alpha = torch.zeros_like(rendered_depth)
 
     return {
         "render": rendered_image,

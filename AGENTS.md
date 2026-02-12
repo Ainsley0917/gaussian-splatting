@@ -9,14 +9,15 @@ Complete 3D Gaussian Splatting implementation: differentiable rendering of aniso
 
 ## PROJECT STATUS
 
-- **Git**: 已初始化（`git init`），无远端，尚无 commit，所有文件处于 untracked 状态
+- **Git**: 已初始化并完成首个 commit（`527d0e1`），已配置远端 `origin`（`git@github.com:Ainsley0917/gaussian-splatting.git`），当前仓库为 GitHub Public
 - **虚拟环境**: `uv venv --python 3.10 .venv`（Python 3.10.19, macOS aarch64）
 - **依赖管理**: `requirements.txt` / `setup.py` / `pyproject.toml` 三处已同步为精确固定版本（`==`）
-- **依赖安装**: 尚未执行（需通过内网源安装）
+- **依赖安装**: 开发机/实验机尚未完成全量安装；Kaggle 已按最小依赖跑通 smoke test
 - **内网 PyPI 源**: `http://artifactory.intra.xiaojukeji.com/artifactory/api/pypi/pypi/simple`
 - **已有训练产出**: `output/lego_smoke/`, `output/lego_smoke_fast/`（NeRF synthetic lego 数据集）
+- **Kaggle 跑通记录**: `runs/lego_tiny_100`（100 iter，PSNR 9.6484 / SSIM 0.6200 / LPIPS 0.6304）
 - **课题文档**: `THESIS_INFO.md`（课题/任务书/开题信息）
-- **周记归档**: `weekly_reports/week04_2025-12-16.md`（第4周周记，当前最新）
+- **周记归档**: `weekly_reports/week05_2026-02-12.md`（第5周周记，当前最新）
 
 ## DEPLOYMENT STRATEGY
 
@@ -59,7 +60,7 @@ gaussian_splatting/
 ├── IMPLEMENTATION.md     # 实现说明文档
 ├── weekly_reports/       # 周记归档
 │   ├── week04_2025-12-16.md  # 第4周周记
-│   └── week05_2026-02-12.md  # 第5周周记（环境搭建）
+│   └── week05_2026-02-12.md  # 第5周周记（环境搭建 + Kaggle pipeline 跑通）
 ├── scene/                # Core 3DGS domain (see scene/AGENTS.md)
 │   ├── __init__.py       # Scene class
 │   ├── gaussian_model.py # GaussianModel - THE central class
